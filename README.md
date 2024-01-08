@@ -28,72 +28,6 @@ We also provide a number of optional dependencies for extended functionality. Ex
 |---------------|---------------------------------------|
 | all           | Loads all extras (not recommended)    |
 
-## Basic Usage
-
-### Hugging Face `transformers`
-
-To evaluate a model hosted on the [HuggingFace Hub](https://huggingface.co/models) (e.g. GPT-J-6B) on `hellaswag` you can use the following command (this assumes you are using a CUDA-compatible GPU):
-
-```bash
-lm_eval --model hf \
-    --model_args pretrained=EleutherAI/gpt-j-6B \
-    --tasks hellaswag \
-    --device cuda:0 \
-    --batch_size 8
-```
-
-Additional arguments can be provided to the model constructor using the `--model_args` flag. Most notably, this supports the common practice of using the `revisions` feature on the Hub to store partially trained checkpoints, or to specify the datatype for running a model:
-
-```bash
-lm_eval --model hf \
-    --model_args pretrained=EleutherAI/pythia-160m,revision=step100000,dtype="float" \
-    --tasks lambada_openai,hellaswag \
-    --device cuda:0 \
-    --batch_size 8
-```
-
-Models that are loaded via both `transformers.AutoModelForCausalLM` (autoregressive, decoder-only GPT style models) and `transformers.AutoModelForSeq2SeqLM` (such as encoder-decoder models like T5) in Huggingface are supported.
-
-Batch size selection can be automated by setting the  ```--batch_size``` flag to ```auto```. This will perform automatic detection of the largest batch size that will fit on your device. On tasks where there is a large difference between the longest and shortest example, it can be helpful to periodically recompute the largest batch size, to gain a further speedup. To do this, append ```:N``` to above flag to automatically recompute the largest batch size ```N``` times. For example, to recompute the batch size 4 times, the command would be:
-
-```bash
-lm_eval --model hf \
-    --model_args pretrained=EleutherAI/pythia-160m,revision=step100000,dtype="float" \
-    --tasks lambada_openai,hellaswag \
-    --device cuda:0 \
-    --batch_size auto:4
-```
-
-The full list of supported arguments are provided [here](./docs/interface.md), and on the terminal by calling `lm_eval -h`. Alternatively, you can use `lm-eval` instead of `lm_eval`.
-
-> [!Note]
-> Just like you can provide a local path to `transformers.AutoModel`, you can also provide a local path to `lm_eval` via `--model_args pretrained=/path/to/model`
-
-#### Multi-GPU Evaluation with Hugging Face `accelerate`
-
-To parallelize evaluation of HuggingFace models across multiple GPUs, we leverage the [accelerate 🚀](https://github.com/huggingface/accelerate) library as follows:
-
-```
-accelerate launch -m lm_eval --model hf \
-    --tasks lambada_openai,arc_easy \
-    --batch_size 16
-```
-
-This will perform *data-parallel evaluation*: that is, placing a **single full copy** of your model onto each available GPU and *splitting batches across GPUs* to evaluate on K GPUs K times faster than on one.
-
-If your model is *is too large to be run on a single one of your GPUs* then you can use `accelerate` with Fully Sharded Data Parallel (FSDP) that splits the weights of the model across your data parallel ranks. To enable this, ensure you select `YES` when asked ```Do you want to use FullyShardedDataParallel?``` when running `accelerate config`. To enable memory-efficient loading, select `YES` when asked `Do you want each individually wrapped FSDP unit to broadcast module parameters from rank 0 at the start?`. This will ensure only the rank 0 process loads the model and then broadcasts the parameters to the other ranks instead of having each rank load all parameters which can lead to large RAM usage spikes around the start of the script that may cause errors.
-
-To pass even more advanced keyword arguments to `accelerate`, we allow for the following arguments as well:
-- `device_map_option`: How to split model weights across available GPUs. defaults to "auto".
-- `max_memory_per_gpu`: the max GPU memory to use per GPU in loading the model.
-- `max_cpu_memory`: the max amount of CPU memory to use when offloading the model weights to RAM.
-- `offload_folder`: a folder where model weights will be offloaded to disk if needed.
-
-To use `accelerate` with the `lm-eval` command, use
-```
-accelerate launch --no_python lm-eval --model ...
-```
-
 
 ### Tensor + Data Parallel and Optimized Inference with `vLLM`
 
@@ -238,35 +172,3 @@ If you run the eval harness on multiple tasks, the `project_name` will be used a
 
 You can find an example of this workflow in [examples/visualize-zeno.ipynb](examples/visualize-zeno.ipynb).
 
-## How to Contribute or Learn More?
-
-For more information on the library and how everything fits together, check out all of our [documentation pages](https://github.com/EleutherAI/lm-evaluation-harness/tree/main/docs)! We plan to post a larger roadmap of desired + planned library improvements soon, with more information on how contributors can help.
-
-### Implementing new tasks
-
-To implement a new task in the eval harness, see [this guide](./docs/new_task_guide.md).
-
-In general, we follow this priority list for addressing concerns about prompting and other eval details:
-1. If there is widespread agreement among people who train LLMs, use the agreed upon procedure.
-2. If there is a clear and unambiguous official implementation, use that procedure.
-3. If there is widespread agreement among people who evaluate LLMs, use the agreed upon procedure.
-4. If there are multiple common implementations but not universal or widespread agreement, use our preferred option among the common implementations. As before, prioritize choosing from among the implementations found in LLM training papers.
-
-These are guidelines and not rules, and can be overruled in special circumstances.
-
-We try to prioritize agreement with the procedures used by other groups to decrease the harm when people inevitably compare runs across different papers despite our discouragement of the practice. Historically, we also prioritized the implementation from [Language Models are Few Shot Learners](https://arxiv.org/abs/2005.14165) as our original goal was specifically to compare results with that paper.
-
-### Support
-
-The best way to get support is to open an issue on this repo or join the [EleutherAI Discord server](https://discord.gg/eleutherai). The `#lm-thunderdome` channel is dedicated to developing this project and the `#release-discussion` channel is for receiving support for our releases. If you've used the library and have had a positive (or negative) experience, we'd love to hear from you!
-
-## Cite as
-
-```
-@article{gao2021framework,
-  title={A framework for few-shot language model evaluation},
-  author={Gao, Leo and Tow, Jonathan and Biderman, Stella and Black, Sid and DiPofi, Anthony and Foster, Charles and Golding, Laurence and Hsu, Jeffrey and McDonell, Kyle and Muennighoff, Niklas and others},
-  journal={Version v0. 0.1. Sept},
-  year={2021}
-}
-```
