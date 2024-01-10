@@ -3,8 +3,9 @@ import itertools
 import collections
 
 import torch
-
+import os
 import numpy as np
+import json
 
 import lm_eval.api
 import lm_eval.tasks
@@ -175,6 +176,14 @@ def simple_evaluate(
             "gen_kwargs": gen_kwargs,
         }
         results["git_hash"] = get_git_commit_hash()
+        model_name = model if isinstance(model, str) else model.model.config._name_or_path
+        directory = os.path.join(os.getcwd(), "results")
+        os.makedirs(directory, exist_ok=True)
+        file_path = os.path.join(directory, f"{model_name}.json")
+
+        with open(file_path, 'w') as f:
+            json.dump(results_dict, f)
+
         return results
     else:
         return None

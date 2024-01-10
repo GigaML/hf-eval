@@ -274,7 +274,7 @@ def cli_evaluate(args: Union[argparse.Namespace, None] = None) -> None:
                     filename.open("w").write(samples_dumped)
         results_dir = Path('results')
         results_dir.mkdir(parents=True, exist_ok=True)
-        results_file = results_dir / 'model_outputs.json'
+        results_file = results_dir / f'{args.model}_outputs.json'
         with results_file.open('w') as f:
             json.dump(results, f, indent=2, default=_handle_non_serializable, ensure_ascii=False)
         print(f"Model outputs have been saved in the file: {results_file}")
